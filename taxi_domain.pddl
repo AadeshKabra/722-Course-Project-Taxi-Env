@@ -24,8 +24,7 @@
                         (passenger-at ?p ?loc)
                         (not (in-taxi ?p ?t)))
 
-        :effect         (and (not passenger-at ?p ?loc)
-                        (in-taxi ?p ?t))
+        :effect         (and (not (passenger-at ?p ?loc)) (in-taxi ?p ?t))
     )
 
     (:action DROP-OFF
@@ -34,14 +33,14 @@
                         (taxi-at ?t ?loc)
                         (destination ?p ?loc))
         :effect         (and (not (in-taxi ?p ?t))
-                        passenger-at ?p ?loc)
+                        (passenger-at ?p ?loc))
     )
 
     (:action MOVE-NORTH
         :parameters     (?t - taxi ?origin ?destination - location)
 
         :precondition   (and (taxi-at ?t ?origin)
-                        (north ?t ?destination))
+                        (north ?origin ?destination))
 
         :effect         (and (not (taxi-at ?t ?origin))
                         (taxi-at ?t ?destination))
@@ -51,7 +50,7 @@
         :parameters     (?t - taxi ?origin ?destination - location)
 
         :precondition   (and (taxi-at ?t ?origin)
-                        (south ?t ?destination))
+                        (south ?origin ?destination))
 
         :effect         (and (not (taxi-at ?t ?origin))
                         (taxi-at ?t ?destination))
@@ -61,7 +60,7 @@
         :parameters     (?t - taxi ?origin ?destination - location)
 
         :precondition   (and (taxi-at ?t ?origin)
-                        (west ?t ?destination))
+                        (west ?origin ?destination))
 
         :effect         (and (not (taxi-at ?t ?origin))
                         (taxi-at ?t ?destination))
@@ -71,7 +70,7 @@
         :parameters     (?t - taxi ?origin ?destination - location)
 
         :precondition   (and (taxi-at ?t ?origin)
-                        (east ?t ?destination))
+                        (east ?origin ?destination))
 
         :effect         (and (not (taxi-at ?t ?origin))
                         (taxi-at ?t ?destination))
