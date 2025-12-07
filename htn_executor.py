@@ -1,17 +1,8 @@
-"""
-Main evaluation script for HTN acting strategies on Taxi-v3
-Compares Run-Lookahead vs Run-Lazy-Lookahead
-"""
-
 import csv
 from htn_acting_strategies import HTNTaxiExecutor
 
 
 def evaluate_strategy(executor, strategy_name, strategy_func, num_episodes=10, verbose_first=True):
-
-    print(f"\n{'=' * 70}")
-    print(f"{strategy_name.upper()} EVALUATION")
-    print(f"{'=' * 70}")
 
     results = []
 
@@ -22,8 +13,8 @@ def evaluate_strategy(executor, strategy_name, strategy_func, num_episodes=10, v
 
         results.append((success, steps, plans, reward, plan_time, fidelity))
 
-        if not verbose:  # Only print summary if not verbose
-            status = "✓" if success else "✗"
+        if not verbose: 
+            status = "right" if success else "wrong"
             print(f"Episode {i + 1:2d}: {status} | Steps={steps:3d} | Plans={plans:3d} | "
                   f"Reward={reward:4.0f} | Time={plan_time:6.3f}s | Fidelity={fidelity:.2f}")
 
@@ -31,10 +22,6 @@ def evaluate_strategy(executor, strategy_name, strategy_func, num_episodes=10, v
 
 
 def print_comparison(lookahead_results, lazy_results):
-    """Print detailed comparison of both strategies"""
-    print(f"\n{'=' * 70}")
-    print("COMPARISON SUMMARY")
-    print(f"{'=' * 70}\n")
 
     metrics = [
         ("Success Rate", lambda r: sum(x[0] for x in r) / len(r) * 100, "%"),
@@ -44,9 +31,6 @@ def print_comparison(lookahead_results, lazy_results):
         ("Avg Planning Time", lambda r: sum(x[4] for x in r) / len(r), "s"),
         ("Avg Fidelity", lambda r: sum(x[5] for x in r) / len(r), ""),
     ]
-
-    print(f"{'Metric':<25} {'Run-Lookahead':<20} {'Run-Lazy-Lookahead':<20}")
-    print("-" * 70)
 
     for name, func, unit in metrics:
         la_val = func(lookahead_results)
@@ -61,19 +45,18 @@ def print_comparison(lookahead_results, lazy_results):
 
 
 def export_results(lookahead_results, lazy_results, filename="htn_results.csv"):
-    """Export results to CSV for further analysis"""
     with open(filename, 'w', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(['Strategy', 'Episode', 'Success', 'Steps', 'Plans',
                          'Reward', 'Planning_Time', 'Fidelity'])
 
         for i, r in enumerate(lookahead_results):
-            writer.writerow(['Run-Lookahead', i + 1] + list(r))
+            writer.writerow(['HTN-Run-Lookahead', i + 1] + list(r))
 
         for i, r in enumerate(lazy_results):
-            writer.writerow(['Run-Lazy-Lookahead', i + 1] + list(r))
+            writer.writerow(['HTN-Run-Lazy-Lookahead', i + 1] + list(r))
 
-    print(f"\n✅ Results exported to {filename}")
+    print(f"Results exported to {filename}")
 
 
 if __name__ == '__main__':

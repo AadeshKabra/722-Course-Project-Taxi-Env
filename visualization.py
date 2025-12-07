@@ -12,7 +12,6 @@ def load_and_combine_results():
     # Load Classical results
     classical_df = pd.read_csv('classical_results.csv')
 
-    # Combine them
     all_results = pd.concat([htn_df, classical_df], ignore_index=True)
 
     return all_results
@@ -33,9 +32,8 @@ def calculate_summary_stats(df):
     return summary
 
 
-# ============================================================
 # CHART 1: Success Rate Comparison (Bar Chart)
-# ============================================================
+
 def plot_success_rate(df):
     """Bar chart comparing success rates"""
     fig, ax = plt.subplots(figsize=(10, 6))
@@ -60,12 +58,11 @@ def plot_success_rate(df):
     plt.tight_layout()
     plt.savefig('success_rate_comparison.png', dpi=300, bbox_inches='tight')
     plt.show()
-    print("✅ Saved: success_rate_comparison.png")
 
 
-# ============================================================
+
 # CHART 2: Multi-Metric Radar Chart
-# ============================================================
+
 def plot_radar_chart(df):
     """Radar chart comparing multiple metrics"""
     from math import pi
@@ -78,7 +75,6 @@ def plot_radar_chart(df):
         'Fidelity': 'mean'
     })
 
-    # Normalize (lower is better for Steps and Plans, so invert)
     summary['Success_norm'] = summary['Success']
     summary['Steps_norm'] = 1 - (summary['Steps'] / summary['Steps'].max())
     summary['Plans_norm'] = 1 - (summary['Plans'] / summary['Plans'].max())
@@ -112,12 +108,11 @@ def plot_radar_chart(df):
     plt.tight_layout()
     plt.savefig('radar_comparison.png', dpi=300, bbox_inches='tight')
     plt.show()
-    print("✅ Saved: radar_comparison.png")
 
 
-# ============================================================
+
 # CHART 3: Planning Overhead vs Success (Scatter Plot)
-# ============================================================
+
 def plot_overhead_vs_success(df):
     """Scatter plot: Planning overhead vs success rate"""
     fig, ax = plt.subplots(figsize=(10, 6))
@@ -151,12 +146,11 @@ def plot_overhead_vs_success(df):
     plt.tight_layout()
     plt.savefig('overhead_vs_success.png', dpi=300, bbox_inches='tight')
     plt.show()
-    print("✅ Saved: overhead_vs_success.png")
 
 
-# ============================================================
+
 # CHART 4: Grouped Bar Chart - All Metrics
-# ============================================================
+
 def plot_grouped_metrics(df):
     """Grouped bar chart for all key metrics"""
     summary = df.groupby('Strategy').agg({
@@ -202,14 +196,12 @@ def plot_grouped_metrics(df):
     plt.tight_layout()
     plt.savefig('all_metrics_comparison.png', dpi=300, bbox_inches='tight')
     plt.show()
-    print("✅ Saved: all_metrics_comparison.png")
 
 
-# ============================================================
+
 # CHART 5: Episode-by-Episode Line Plot
-# ============================================================
+
 def plot_episode_trends(df):
-    """Line plot showing performance across episodes"""
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
     fig.suptitle('Performance Trends Across Episodes', fontsize=16, fontweight='bold')
 
@@ -235,18 +227,14 @@ def plot_episode_trends(df):
     plt.tight_layout()
     plt.savefig('episode_trends.png', dpi=300, bbox_inches='tight')
     plt.show()
-    print("✅ Saved: episode_trends.png")
+    
 
 
-# ============================================================
-# Main Execution
-# ============================================================
 
 df = load_and_combine_results()
 
-print("\n" + "=" * 70)
-print("GENERATING COMPARISON CHARTS")
-print("=" * 70 + "\n")
+print("Generating Charts comparison")
+
 
 # Generate all charts
 plot_success_rate(df)
@@ -255,10 +243,8 @@ plot_overhead_vs_success(df)
 plot_grouped_metrics(df)
 plot_episode_trends(df)
 
-# Print summary statistics
-print("\n" + "=" * 70)
+
 print("SUMMARY STATISTICS")
-print("=" * 70)
 print(calculate_summary_stats(df))
 
-print("\n✅ All charts generated successfully!")
+print("All charts generated successfully!")

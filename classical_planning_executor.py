@@ -17,23 +17,7 @@ class SimpleTaxiPlanner:
     def make_problem(self, obs):
         taxi_row, taxi_col, pass_loc, dest_idx = self.env.unwrapped.decode(obs)
 
-        # CORRECT walls for Taxi-v3
-        walls = {
-            # Top-left vertical wall (between columns 0-1, rows 0-1)
-            ((0, 0), (0, 1)), ((0, 1), (0, 0)),
-            ((1, 0), (1, 1)), ((1, 1), (1, 0)),
-            # Top-right vertical wall (between columns 3-4, rows 0-1)
-            ((0, 3), (0, 4)), ((0, 4), (0, 3)),
-            ((1, 3), (1, 4)), ((1, 4), (1, 3)),
-            # Bottom-left L-shaped wall
-            ((3, 0), (4, 0)), ((4, 0), (3, 0)),  # Horizontal part
-            ((3, 0), (3, 1)), ((3, 1), (3, 0)),  # ← ADD THIS
-            ((4, 0), (4, 1)), ((4, 1), (4, 0)),  # ← ADD THIS
-            # Bottom-middle reverse-L shaped wall
-            ((3, 2), (4, 2)), ((4, 2), (3, 2)),  # Horizontal part
-            ((3, 2), (3, 3)), ((3, 3), (3, 2)),  # ← ADD THIS
-            ((4, 2), (4, 3)), ((4, 3), (4, 2)),  # ← ADD THIS
-        }
+        walls = set()  
 
         pddl = "(define (problem taxi-simple)\n (:domain taxi)\n"
         pddl += "   (:objects taxi1 - taxi passenger1 - passenger\n"
@@ -69,8 +53,7 @@ class SimpleTaxiPlanner:
 
     def pddl_to_gym_action(self, action_name):
         """
-        Map PDDL action names to Gym Taxi-v3 actions
-        Gym actions: 0=south, 1=north, 2=east, 3=west, 4=pickup, 5=dropoff
+        Actions: 0=south, 1=north, 2=east, 3=west, 4=pickup, 5=dropoff
         """
         action_str = str(action_name).lower()
 
@@ -87,7 +70,6 @@ class SimpleTaxiPlanner:
         elif 'drop' in action_str:
             return 5
         else:
-            print(f"WARNING: Unknown action '{action_name}', defaulting to south")
             return 0
 
     def decode_state(self, obs):
@@ -114,22 +96,16 @@ class SimpleTaxiPlanner:
         MAX_CONSECUTIVE_FAILURES = 3
         terminated = False
         reward = 0
-        terminated = False  # Initialize to prevent UnboundLocalError
-        reward = 0  # Initialize to prevent UnboundLocalError
+        terminated = False  
+        reward = 0  
 
         while not done and steps < 200:
             # Generate new plan if needed
             if not current_plan:
-                if verbose:
-                    print(f"\n--- Planning at step {steps} ---")
-                    print(f"Current state: {self.decode_state(obs)}")
-
                 problem_str = self.make_problem(obs)
 
                 if verbose and steps == 0:
-                    print(f"\n=== GENERATED PDDL PROBLEM ===")
                     print(problem_str)
-                    print(f"=== END PDDL ===\n")
 
                 with tempfile.NamedTemporaryFile(mode='w', suffix='.pddl', delete=False) as f:
                     f.write(problem_str)
@@ -159,14 +135,14 @@ class SimpleTaxiPlanner:
                     self.env.close()
                     return success, steps, plan_count, total_reward
 
-            # Execute next action from plan
+            
             action_name = current_plan.pop(0)
             gym_action = self.pddl_to_gym_action(action_name)
 
             if verbose:
-                print(f"  Step {steps}: {action_name} -> gym_action={gym_action}")
+                print(f"Step {steps}: {action_name}, gym_action={gym_action}")
 
-            # Store state before action
+            
             old_obs = obs
             old_state = tuple(self.env.unwrapped.decode(obs))
 
@@ -175,7 +151,7 @@ class SimpleTaxiPlanner:
             new_state = tuple(self.env.unwrapped.decode(obs))
 
             if verbose:
-                print(f"    Before: {old_state} | After: {new_state} | Reward: {reward}")
+                print(f"Before: {old_state} | After: {new_state} | Reward: {reward}")
 
             time.sleep(delay)
 
@@ -184,29 +160,19 @@ class SimpleTaxiPlanner:
             done = terminated or truncated
             if old_state == new_state and not done:
                 consecutive_failures += 1
-                if verbose:
-                    print(
-                        f"    ⚠️  WARNING: State unchanged! (failure {consecutive_failures}/{MAX_CONSECUTIVE_FAILURES})")
 
-                # If state didn't change for several consecutive actions, replan
+                # Replan
                 if consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
-                    if verbose:
-                        print(f"    🔄 REPLANNING due to {consecutive_failures} consecutive failures")
                     current_plan = []
                     consecutive_failures = 0
             else:
                 consecutive_failures = 0
                 if verbose and old_state != new_state:
-                    print(f"    ✓ State changed successfully")
+                    print(f"State changed successfully")
 
         success = terminated and reward > 0
         self.env.close()
-
-        if verbose:
-            print(f"\n{'=' * 60}")
-            print(f"Episode finished: {'SUCCESS ✓' if success else 'FAILED ✗'}")
-            print(f"Steps: {steps} | Plans generated: {plan_count} | Total reward: {total_reward}")
-            print(f"{'=' * 60}")
+            
 
         return success, steps, plan_count, total_reward
 
@@ -225,8 +191,14 @@ class SimpleTaxiPlanner:
         terminated = False
         reward = 0
 
+        total_planning_time = 0
+        actions_planned = 0
+        actions_executed = 0
+
         while not done and steps < 200:
             if not current_plan:
+                if verbose:
+                    print(f"[Step {steps}] Planning...")
                 problem_str = self.make_problem(obs)
 
                 with tempfile.NamedTemporaryFile(mode='w', suffix='.pddl', delete=False) as f:
@@ -234,26 +206,39 @@ class SimpleTaxiPlanner:
                     problem_file = f.name
 
                 try:
+                    planning_start = time.time()
                     plan_result = plan(self.domain_file, problem_file)
+                    planning_time = time.time() - planning_start
+                    total_planning_time += planning_time
                     os.unlink(problem_file)
 
                     if not plan_result:
                         if verbose:
                             print("No plan found!")
                         break
-                        # success = False
-                        # self.env.close()
-                        # return success, steps, plan_count, total_reward
 
                     current_plan = [a.name if hasattr(a, 'name') else str(a)
                                     for a in plan_result]
+                    
+                    
+                    if not current_plan:
+                        break
+                    
+                    actions_planned += len(current_plan)
                     plan_count += 1
 
                 except Exception as e:
                     if verbose:
                         print(f"Planning error: {e}")
-                    os.unlink(problem_file)
+                    if os.path.exists(problem_file):
+                        os.unlink(problem_file)
                     break
+            
+            # Safety check before popping
+            if not current_plan:
+                if verbose:
+                    print(f"Error: current_plan is empty at step {steps}")
+                break
 
             action_name = current_plan.pop(0)
             gym_action = self.pddl_to_gym_action(action_name)
@@ -264,6 +249,7 @@ class SimpleTaxiPlanner:
 
             total_reward += reward
             steps += 1
+            actions_executed += 1
             done = terminated or truncated
 
             # Check if state changed
@@ -278,7 +264,9 @@ class SimpleTaxiPlanner:
         success = terminated and reward > 0
         self.env.close()
 
-        return success, steps, plan_count, total_reward
+        fidelity = actions_executed / actions_planned if actions_planned > 0 else 0
+
+        return success, steps, plan_count, total_reward, total_planning_time, fidelity
 
     def run_episode_lookahead(self, seed=None, verbose=False):
         """Classical Planning with Run-Lookahead (replan every step)"""
@@ -292,8 +280,12 @@ class SimpleTaxiPlanner:
         terminated = False
         reward = 0
 
+        total_planning_time = 0
+        actions_planned = 0
+        actions_executed = 0
+
         while not done and steps < 200:
-            # ALWAYS REPLAN - this is Run-Lookahead
+            
             problem_str = self.make_problem(obs)
 
             with tempfile.NamedTemporaryFile(mode='w', suffix='.pddl', delete=False) as f:
@@ -301,13 +293,17 @@ class SimpleTaxiPlanner:
                 problem_file = f.name
 
             try:
+                planning_start = time.time()
                 plan_result = plan(self.domain_file, problem_file)
+                planning_time = time.time() - planning_start
+                total_planning_time += planning_time
                 os.unlink(problem_file)
 
                 if not plan_result:
                     break
 
                 plan_count += 1
+                actions_planned += len(plan_result)
 
                 # Execute ONLY first action (Run-Lookahead)
                 action = plan_result[0]
@@ -317,18 +313,23 @@ class SimpleTaxiPlanner:
             except Exception as e:
                 if verbose:
                     print(f"Planning error: {e}")
+                if os.path.exists(problem_file):
+                    os.unlink(problem_file)
                 break
 
             obs, reward, terminated, truncated, _ = self.env.step(gym_action)
 
             total_reward += reward
             steps += 1
+            actions_executed += 1
             done = terminated or truncated
 
         success = terminated and reward > 0
         self.env.close()
 
-        return success, steps, plan_count, total_reward
+        fidelity = actions_executed / actions_planned if actions_planned > 0 else 0
+
+        return success, steps, plan_count, total_reward, total_planning_time, fidelity
 
 
 def export_both_to_csv(lazy_results, lookahead_results, filename="classical_results.csv"):
@@ -337,90 +338,77 @@ def export_both_to_csv(lazy_results, lookahead_results, filename="classical_resu
         writer = csv.writer(f)
 
         # Header matching your HTN CSV format
-        writer.writerow(['Strategy', 'Episode', 'Success', 'Steps', 'Plans', 'Reward'])
+        writer.writerow(['Strategy', 'Episode', 'Success', 'Steps', 'Plans', 
+                         'Reward', 'Planning_Time', 'Fidelity'])
 
         # Write Lazy-Lookahead results
+        
         for i, r in enumerate(lazy_results):
-            success, steps, plans, reward = r
-            writer.writerow(['Classical-Run-Lazy-Lookahead', i + 1, success, steps, plans, reward])
+            success, steps, plans, reward, plan_time, fidelity = r
+            writer.writerow(['Classical-Run-Lazy-Lookahead', i + 1, success, steps, plans, reward, plan_time, fidelity])
 
         # Write Lookahead results
+        
         for i, r in enumerate(lookahead_results):
-            success, steps, plans, reward = r
-            writer.writerow(['Classical-Run-Lookahead', i + 1, success, steps, plans, reward])
+            success, steps, plans, reward, plan_time, fidelity = r
+            writer.writerow(['Classical-Run-Lookahead', i + 1, success, steps, plans, reward, plan_time, fidelity])
 
-    print(f"\n✅ Results exported to {filename}")
+    print(f"Results exported to {filename}")
 
 
 
 if __name__ == "__main__":
     planner = SimpleTaxiPlanner('taxi_domain.pddl')
 
-    # Run single episode with visualization and verbose output
-    print("=" * 60)
-    print("Running single episode with visualization and debugging...")
-    print("=" * 60)
+
     success, steps, plans, reward = planner.run_episode_visual(seed=42, verbose=True, delay=0.3)
 
-    input("\nPress Enter to continue to batch test...")
+    print("Classical Planning - RUN-LAZY-LOOKAHEAD Evaluation")
+   
 
-    # ============================================================
-    # Run batch test for Run-Lazy-Lookahead
-    # ============================================================
-    print("\n" + "=" * 70)
-    print("CLASSICAL PLANNING - RUN-LAZY-LOOKAHEAD EVALUATION")
-    print("=" * 70)
-
-    lazy_results = []  # ← Separate results list
+    lazy_results = [] 
     for i in range(10):
-        success, steps, plans, reward = planner.run_episode(seed=i, verbose=False)
-        lazy_results.append((success, steps, plans, reward))
-        status = "✓" if success else "✗"
-        print(f"Episode {i + 1:2d}: {status} | Steps={steps:3d} | Plans={plans:2d} | Reward={reward:6.1f}")
+        success, steps, plans, reward, plan_time, fidelity = planner.run_episode(seed=i, verbose=False)
+        lazy_results.append((success, steps, plans, reward, plan_time, fidelity))
+        print(f"Episode {i + 1:2d}: | Steps={steps:3d} | Plans={plans:2d} | Reward={reward:6.1f}")
 
-    # ============================================================
-    # Run batch test for Run-Lookahead
-    # ============================================================
-    print("\n" + "=" * 70)
-    print("CLASSICAL PLANNING - RUN-LOOKAHEAD EVALUATION")
-    print("=" * 70)
 
-    lookahead_results = []  # ← Separate results list
+    print("Classical Planning - RUN-LOOKAHEAD Evaluation")
+
+
+    lookahead_results = [] 
     for i in range(10):
-        success, steps, plans, reward = planner.run_episode_lookahead(seed=i, verbose=False)
-        lookahead_results.append((success, steps, plans, reward))
-        status = "✓" if success else "✗"
-        print(f"Episode {i + 1:2d}: {status} | Steps={steps:3d} | Plans={plans:2d} | Reward={reward:6.1f}")
+        success, steps, plans, reward, plan_time, fidelity = planner.run_episode_lookahead(seed=i, verbose=False)
+        lookahead_results.append((success, steps, plans, reward, plan_time, fidelity))
+        print(f"Episode {i + 1:2d}: | Steps={steps:3d} | Plans={plans:2d} | Reward={reward:6.1f}")
 
-    # ============================================================
-    # Calculate statistics for BOTH strategies
-    # ============================================================
-    print(f"\n{'=' * 70}")
-    print("COMPARISON SUMMARY")
-    print(f"{'=' * 70}\n")
+    
+  
+    print("Comparison Summary")
 
     # Lazy-Lookahead stats
     lazy_success_rate = sum(r[0] for r in lazy_results) / len(lazy_results) * 100
     lazy_avg_steps = sum(r[1] for r in lazy_results) / len(lazy_results)
     lazy_avg_plans = sum(r[2] for r in lazy_results) / len(lazy_results)
     lazy_avg_reward = sum(r[3] for r in lazy_results) / len(lazy_results)
+    lazy_avg_plan_time = sum(r[4] for r in lazy_results) / len(lazy_results)
 
     # Lookahead stats
     lookahead_success_rate = sum(r[0] for r in lookahead_results) / len(lookahead_results) * 100
     lookahead_avg_steps = sum(r[1] for r in lookahead_results) / len(lookahead_results)
     lookahead_avg_plans = sum(r[2] for r in lookahead_results) / len(lookahead_results)
     lookahead_avg_reward = sum(r[3] for r in lookahead_results) / len(lookahead_results)
+    lookahead_avg_plan_time = sum(r[4] for r in lookahead_results) / len(lookahead_results)
+
+    
 
     # Print comparison table
     print(f"{'Metric':<20} {'Run-Lazy-Lookahead':<25} {'Run-Lookahead':<25}")
-    print("-" * 70)
     print(f"{'Success Rate':<20} {lazy_success_rate:>6.1f}%{'':<18} {lookahead_success_rate:>6.1f}%")
     print(f"{'Avg Steps':<20} {lazy_avg_steps:>6.2f}{'':<19} {lookahead_avg_steps:>6.2f}")
     print(f"{'Avg Plans':<20} {lazy_avg_plans:>6.2f}{'':<19} {lookahead_avg_plans:>6.2f}")
     print(f"{'Avg Reward':<20} {lazy_avg_reward:>6.2f}{'':<19} {lookahead_avg_reward:>6.2f}")
-    print(f"{'=' * 70}")
+    print(f"{'Avg Planning Time':<20} {lazy_avg_plan_time:>6.3f}s{'':<18} {lookahead_avg_plan_time:>6.3f}s")
 
-    # ============================================================
-    # Export BOTH to single CSV file (like HTN format)
-    # ============================================================
+    # Export
     export_both_to_csv(lazy_results, lookahead_results, "classical_results.csv")
