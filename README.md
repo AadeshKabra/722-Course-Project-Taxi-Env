@@ -1,3 +1,5 @@
+# Evaluating Run-Lookahead Algorithms for HTN and PDDL Planning in Taxi Environment
+
 The objective of the project is to evaluate the performance of Hierarchical and Classical planning and acting strategies in the Taxi-v3 environment. The project will compare HTN Run-Lookahead and HTN Run-Lazy-Lookahead acting strategies using GTPyhop and Classical Planning approach.
 
 The project would address the following research questions:
@@ -15,3 +17,4 @@ Important Files:
 - visualization.py : Separate Python file for creating charts and visualizations.
 - acting_strategies.py : Helper file for acting strategies of Classical Planning.
 - htn_acting_strategies: Helper file for acting stratgeies of GTPyhop planning approach.
+
