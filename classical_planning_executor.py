@@ -17,7 +17,17 @@ class SimpleTaxiPlanner:
     def make_problem(self, obs):
         taxi_row, taxi_col, pass_loc, dest_idx = self.env.unwrapped.decode(obs)
 
-        walls = set()  
+        # walls = set()  
+        walls = {
+            ((0, 0), (0, 1)), ((0, 1), (0, 0)),  # Vertical wall right of R
+            ((1, 0), (1, 1)), ((1, 1), (1, 0)),
+            ((0, 2), (0, 3)), ((0, 3), (0, 2)),  # Vertical wall right of column 2
+            ((1, 2), (1, 3)), ((1, 3), (1, 2)),
+            ((3, 0), (3, 1)), ((3, 1), (3, 0)),  # Vertical wall right of column 0
+            ((4, 0), (4, 1)), ((4, 1), (4, 0)),
+            ((3, 2), (3, 3)), ((3, 3), (3, 2)),  # Vertical wall right of column 2
+            ((4, 2), (4, 3)), ((4, 3), (4, 2)),
+        }
 
         pddl = "(define (problem taxi-simple)\n (:domain taxi)\n"
         pddl += "   (:objects taxi1 - taxi passenger1 - passenger\n"
